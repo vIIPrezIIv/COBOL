@@ -1,0 +1,267 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COBOLONE.
+       AUTHOR. REAL ORTELLI.
+      *****************************************
+      *                                       *
+      * PROGRAMMED BY: REAL ORTELLI           *
+      *                                       *
+      *****************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-390 WITH DEBUGGING MODE.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *****************************************
+               SELECT F01-INPUT-FILE ASSIGN TO F01SUBJ.
+
+
+               SELECT F02-INPUT-FILE-TWO ASSIGN TO F02MARKS.
+
+
+      *****************************************
+       DATA DIVISION.
+       FILE SECTION.
+      *****************************************
+       FD F02-INPUT-FILE-TWO
+               RECORDING MODE IS F
+               RECORD CONTAINS 80 CHARACTERS
+               DATA RECORD IS F02-INPUT-IN-TWO.
+       01 F02-INPUT-IN-TWO.
+          05 F02-STUDENT-NAME     PIC X(20).
+          05 F02-SUBJECT-CODE     PIC X(6).
+          05                      PIC X.
+          05 F02-DATE-OF-TEST.
+             10 F02-YEAR                     PIC X(4).
+             10 F02-MONTH                    PIC X(2).
+             10 F02-DAY                      PIC X(2).
+          05 F02-PERCENT-SCORE               PIC 9(3).
+             88 F02-PERCENT-THRU             VALUE 000 THRU 100.
+          05                                 PIC X(42).
+      **************************************************
+       FD F01-INPUT-FILE
+               RECORDING MODE IS F
+               RECORD CONTAINS 80 CHARACTERS
+               DATA RECORD IS F01-INPUT-IN.
+       01 F01-INPUT-IN.
+          05 F01-CODE             PIC X(6).
+          05 F01-SUBJECT          PIC X(20).
+          05                      PIC X(54).
+       WORKING-STORAGE SECTION.
+      *****************************************
+       01 W01-SUB-COUNT           PIC 9(3) VALUE 0.
+       01 W01-END-OF-FILE-F01     PIC X(3) VALUE SPACES.
+       01 W01-END-OF-FILE-F02     PIC X(3) VALUE SPACES.
+       01 W01-SEARCHING-COUNTER   PIC 9(5) VALUE 0.
+       01 W01-SEARCHING-COUNTER-2 PIC 9(5) VALUE 0.
+       01 W01-TOTAL-A             PIC 9(5).
+       01 W01-TOTAL-B             PIC 9(5).
+       01 W01-TOTAL-C             PIC 9(5).
+       01 W01-TOTAL-D             PIC 9(5).
+       01 W01-TOTAL-F             PIC 9(5).
+       01 W01-DATE.
+          05 W01-YEAR             PIC X(4).
+          05 W01-MONTH            PIC X(2).
+          05 W01-DAY              PIC X(2).
+      *****************************************
+       01 W01-SUBJECT-TABLE.
+          05 W01-SUBJECTS OCCURS 1 TO 50 TIMES
+             DEPENDING ON W01-SUB-COUNT
+             ASCENDING KEY W01-CODE
+             INDEXED BY W01-INDEX.
+             10 W01-STUDENT-NAME PIC X(20) VALUE SPACES.
+             10 W01-CODE      PIC 9(6) VALUE 0.
+             10 W01-SUBJECT   PIC X(20) VALUE SPACES.
+             10 W01-GRADE-A   PIC 9(4) VALUE 0.
+             10 W01-GRADE-B   PIC 9(4) VALUE 0.
+             10 W01-GRADE-C   PIC 9(4) VALUE 0.
+             10 W01-GRADE-D   PIC 9(4) VALUE 0.
+             10 W01-GRADE-F   PIC 9(4) VALUE 0.
+      *****************************************
+       01 W02-REPORT-HEADING.
+          05      PIC X(15) VALUE SPACES.
+          05      PIC X(26) VALUE 'ABC COLLEGE STUDENT CENTER'.
+          05      PIC X(39) VALUE SPACES.
+      *********************************************
+       01 W03-REPORT-HEADING-TWO.
+          05                  PIC X(10) VALUE SPACES.
+          05                  PIC X(20) VALUE 'TEST RESULTS SUMMARY'.
+          05                  PIC X(4) VALUE SPACES.
+          05                  PIC X(4) VALUE 'DATE'.
+          05                  PIC X VALUE SPACES.
+      *   05 W03-REPORT-DATE  PIC X(8).
+          05 W03-YEAR         PIC X(4).
+          05                  PIC X VALUE '/'.
+          05 W03-MONTH        PIC X(2).
+          05                  PIC X VALUE '/'.
+          05 W03-DAY          PIC X(2).
+      *************************************************
+       01 W04-REPORT-HEADING-THREE.
+          05         PIC X(12) VALUE 'SUBJECT NAME'.
+          05         PIC X(12) VALUE SPACES.
+          05         PIC X(1) VALUE 'A'.
+          05         PIC X(7) VALUE SPACES.
+          05         PIC X(1) VALUE 'B'.
+          05         PIC X(7) VALUE SPACES.
+          05         PIC X(1) VALUE 'C'.
+          05         PIC X(7) VALUE SPACES.
+          05         PIC X(1) VALUE 'D'.
+          05         PIC X(7) VALUE SPACES.
+          05         PIC X(1) VALUE 'F'.
+          05         PIC X(25) VALUE SPACES.
+      *************************************************
+       01 W05-REPORT-HEADING-FOUR.
+          05             PIC X(5) VALUE 'TOTAL'.
+          05             PIC X(16) VALUE SPACES.
+          05 W05-TOTAL-A PIC ZZ,ZZZ.
+          05             PIC X(2) VALUE SPACES.
+          05 W05-TOTAL-B PIC ZZ,ZZZ.
+          05             PIC X(2) VALUE SPACES.
+          05 W05-TOTAL-C PIC ZZ,ZZZ.
+          05             PIC X(2) VALUE SPACES.
+          05 W05-TOTAL-D PIC ZZ,ZZZ.
+          05             PIC X(2) VALUE SPACES.
+          05 W05-TOTAL-F PIC ZZ,ZZZ.
+          05             PIC X(51) VALUE SPACES.
+      *************************************************
+       01 W06-REPORT-HEADING-FIVE.
+          05 W06-SUBJECT-NAME PIC X(20).
+          05                  PIC X(2) VALUE SPACES.
+          05 W06-GRADE-A      PIC Z,ZZZ.
+          05                  PIC X(3) VALUE SPACES.
+          05 W06-GRADE-B      PIC Z,ZZZ.
+          05                  PIC X(3) VALUE SPACES.
+          05 W06-GRADE-C      PIC Z,ZZZ.
+          05                  PIC X(3) VALUE SPACES.
+          05 W06-GRADE-D      PIC Z,ZZZ.
+          05                  PIC X(3) VALUE SPACES.
+          05 W06-GRADE-F      PIC Z,ZZZ.
+          05                  PIC X(21) VALUE SPACES.
+       PROCEDURE DIVISION.
+           PERFORM 100-OPEN-FILES
+           PERFORM 500-POPULATE-TABLE
+               UNTIL W01-END-OF-FILE-F01 = 'NO'
+           PERFORM 600-SEARCH-MARKS
+               UNTIL W01-END-OF-FILE-F02 = 'NO'
+           PERFORM 200-WRITE-HEADINGS
+           PERFORM 900-DISPLAY-TABLES
+           PERFORM 800-WRITE-FOOTER
+           PERFORM 700-CLOSE-FILES
+
+           STOP RUN
+           .
+      *************************************************
+       100-OPEN-FILES.
+             OPEN INPUT F01-INPUT-FILE
+                        F02-INPUT-FILE-TWO
+           .
+      *************************************************
+       200-WRITE-HEADINGS.
+                 DISPLAY W02-REPORT-HEADING
+                 ACCEPT W01-DATE FROM DATE YYYYMMDD
+                 MOVE W01-YEAR TO W03-YEAR
+                 MOVE W01-MONTH TO W03-MONTH
+                 MOVE W01-DAY TO W03-DAY
+      *          MOVE FUNCTION CURRENT-DATE TO W03-REPORT-DATE
+                 DISPLAY W03-REPORT-HEADING-TWO
+                 DISPLAY W04-REPORT-HEADING-THREE
+                 .
+      *************************************************
+       300-READ-RECORDS-F01.
+                  READ F01-INPUT-FILE
+                       AT END MOVE 'NO' TO W01-END-OF-FILE-F01
+                  END-READ
+                  .
+      *************************************************
+       400-READ-RECORDS-F02.
+                  READ F02-INPUT-FILE-TWO
+                       AT END MOVE 'NO' TO W01-END-OF-FILE-F02
+                  END-READ
+                  .
+      **********************************************
+       500-POPULATE-TABLE.
+              PERFORM 300-READ-RECORDS-F01
+              PERFORM VARYING W01-SUB-COUNT FROM 1 BY 1
+                      UNTIL W01-SUB-COUNT > 50
+                      OR W01-END-OF-FILE-F01 = 'NO'
+                         MOVE F01-CODE TO W01-CODE(W01-SUB-COUNT)
+                         MOVE F01-SUBJECT TO W01-SUBJECT(W01-SUB-COUNT)
+                         READ F01-INPUT-FILE
+                              AT END MOVE 'NO' TO W01-END-OF-FILE-F01
+                         END-READ
+              END-PERFORM
+              .
+
+      **********************************************
+       600-SEARCH-MARKS.
+              PERFORM 400-READ-RECORDS-F02
+              PERFORM VARYING W01-SEARCHING-COUNTER FROM 1 BY 1
+              UNTIL W01-END-OF-FILE-F02 = 'NO'
+              SET W01-INDEX TO 1
+              SEARCH ALL W01-SUBJECTS
+                  AT END
+                    DISPLAY "INVALID SUBJECT CODE " F02-SUBJECT-CODE
+                    DISPLAY SPACES
+                  WHEN W01-CODE(W01-INDEX) = F02-SUBJECT-CODE
+                    MOVE F02-STUDENT-NAME TO W01-STUDENT-NAME(W01-INDEX)
+                    EVALUATE TRUE
+                    WHEN F02-PERCENT-SCORE >= 80 AND <= 100
+                        ADD 1 TO W01-GRADE-A(W01-INDEX)
+                        COMPUTE W01-TOTAL-A = W01-TOTAL-A + 1
+                    WHEN F02-PERCENT-SCORE >= 70 AND <= 79
+                        ADD 1 TO W01-GRADE-B(W01-INDEX)
+                        COMPUTE W01-TOTAL-B = W01-TOTAL-B + 1
+                    WHEN F02-PERCENT-SCORE >= 60 AND <= 69
+                        ADD 1 TO W01-GRADE-C(W01-INDEX)
+                        COMPUTE W01-TOTAL-C = W01-TOTAL-C + 1
+                    WHEN F02-PERCENT-SCORE >= 50 AND <= 59
+                        ADD 1 TO W01-GRADE-D(W01-INDEX)
+                        COMPUTE W01-TOTAL-D = W01-TOTAL-D + 1
+                    WHEN OTHER
+                        ADD 1 TO W01-GRADE-F(W01-INDEX)
+                        COMPUTE W01-TOTAL-F = W01-TOTAL-F + 1
+                    END-EVALUATE
+            END-SEARCH
+            READ F02-INPUT-FILE-TWO
+                AT END MOVE 'NO' TO W01-END-OF-FILE-F02
+            END-READ
+            END-PERFORM
+            .
+      **********************************************
+       700-CLOSE-FILES.
+            CLOSE F01-INPUT-FILE
+                  F02-INPUT-FILE-TWO
+            .
+      **********************************************
+       800-WRITE-FOOTER.
+            MOVE W01-TOTAL-A TO W05-TOTAL-A
+            MOVE W01-TOTAL-B TO W05-TOTAL-B
+            MOVE W01-TOTAL-C TO W05-TOTAL-C
+            MOVE W01-TOTAL-D TO W05-TOTAL-D
+            MOVE W01-TOTAL-F TO W05-TOTAL-F
+            DISPLAY W05-REPORT-HEADING-FOUR
+            .
+      **********************************************
+       900-DISPLAY-TABLES.
+              PERFORM VARYING W01-INDEX FROM 1 BY 1
+              UNTIL W01-INDEX > W01-SUB-COUNT
+
+                    IF (W01-SUBJECT(W01-INDEX) = SPACES
+                        OR W01-GRADE-A(W01-INDEX) = ZEROS
+                        AND W01-GRADE-B(W01-INDEX) = ZEROS
+                        AND W01-GRADE-C(W01-INDEX) = ZEROS
+                        AND W01-GRADE-D(W01-INDEX) = ZEROS
+                        AND W01-GRADE-F(W01-INDEX) = ZEROS)
+                        CONTINUE
+                    ELSE
+                        MOVE W01-SUBJECT(W01-INDEX) TO W06-SUBJECT-NAME
+                        MOVE W01-GRADE-A(W01-INDEX) TO W06-GRADE-A
+                        MOVE W01-GRADE-B(W01-INDEX) TO W06-GRADE-B
+                        MOVE W01-GRADE-C(W01-INDEX) TO W06-GRADE-C
+                        MOVE W01-GRADE-D(W01-INDEX) TO W06-GRADE-D
+                        MOVE W01-GRADE-F(W01-INDEX) TO W06-GRADE-F
+                        DISPLAY W06-REPORT-HEADING-FIVE
+
+                    END-IF
+              END-PERFORM
+              .
+
