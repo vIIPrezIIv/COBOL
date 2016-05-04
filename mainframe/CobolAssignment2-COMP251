@@ -1,0 +1,373 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COBOLTWO.
+       AUTHOR. REAL ORTELLI.
+      *****************************************
+      *                                       *
+      * PROGRAMMED BY: REAL ORTELLI           *
+      *                                       *
+      *****************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-390 WITH DEBUGGING MODE.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *****************************************
+      *THIS OPENS THE OUTPUT INPUT FILES
+      *****************************************
+               SELECT F01-INPUT-FILE ASSIGN TO F01EMP.
+
+               SELECT F02-EMP-OUTPUT ASSIGN TO F02EMP.
+      *****************************************
+       DATA DIVISION.
+       FILE SECTION.
+      **************************************************
+      *THIS DESCRIBES THE INPUT OUTPUT FILES
+      **************************************************
+       FD F01-INPUT-FILE
+               RECORDING MODE IS F
+               RECORD CONTAINS 80 CHARACTERS
+               DATA RECORD IS F01-INPUT-IN.
+       01 F01-INPUT-IN.
+          05 F01-EMP-ID           PIC X(6).
+          05 F01-EMP-OFFICE       PIC X(4).
+          05 F01-BENEFIT-INFO OCCURS 5 TIMES.
+             10 F01-BENEFIT-CODE      PIC 9.
+             10 F01-BENEFIT-COST      PIC 9999V99.
+          05                      PIC X(35).
+      **************************************************
+       FD F02-EMP-OUTPUT
+               RECORDING MODE IS F
+               RECORD CONTAINS 80 CHARACTERS
+               DATA RECORD IS F02-EMP-OUT.
+       01 F02-EMP-OUT     PIC X(80).
+      *****************************************
+       WORKING-STORAGE SECTION.
+      *****************************************
+      *WORKING STORAGE VARIABLES FOR SUB,TOTALS,DATES,EOF,COUNTING
+      *****************************************
+       01 W01-COMPANY-COUNT     PIC 99 VALUE 0.
+       01 W01-SUB               PIC 99 VALUE 0.
+       01 W01-TOTAL             PIC 9(7)V99.
+       01 W01-TABLE-SUB         PIC 99 VALUE 0.
+       01 W01-END-OF-FILE       PIC X(3) VALUE SPACES.
+       01 W01-OFFICE-SUB        PIC 99 VALUE 0.
+       01 W01-BENEFIT-SUB       PIC 99 VALUE 0.
+       01 W01-BENEFIT-SUB-TWO   PIC 99 VALUE 0.
+       01 W01-BENEFIT-SUB-THREE PIC 99 VALUE 0.
+       01 W01-DATE.
+          05 W01-YEAR     PIC X(4).
+          05 W01-MONTH    PIC X(2).
+          05 W01-DAY      PIC X(2).
+      *****************************************
+      *INLINE TABLE DATA FOR OFFICE CODES AND CITY
+      *****************************************
+       01 W02-OFFICE-INLINE.
+          05 PIC X(33) VALUE 'SANFSANFRANCISCO'.
+          05 PIC X(33) VALUE 'MTL MONTREAL'.
+          05 PIC X(33) VALUE 'TOR TORONTO'.
+          05 PIC X(33) VALUE 'HK  HONG KONG'.
+          05 PIC X(33) VALUE 'VAN VANCOUVER'.
+          05 PIC X(33) VALUE 'LA  LOSANGELES'.
+          05 PIC X(33) VALUE 'MADRMADRID'.
+          05 PIC X(33) VALUE 'CAPECAPE TOWN'.
+          05 PIC X(33) VALUE 'NYC NEW YORK'.
+          05 PIC X(33) VALUE 'BERLBERLIN'.
+          05 PIC X(33) VALUE '****OTHER'.
+      *****************************************
+      *REDEFINE FOR INLINE OFFICE CODES AND CITY
+      *****************************************
+       01 W02-OFFICE-TABLE REDEFINES W02-OFFICE-INLINE.
+          05 W02-OFFICE OCCURS 11 TIMES
+             INDEXED BY W01-INDEX.
+                10 W02-OFFICE-CODE PIC X(4).
+                10 W02-CITY        PIC X(12).
+                10                 PIC X(17).
+      *****************************************
+      *BENEFIT ACCUMALTOR TABLE
+      *****************************************
+       01 W03-BENEFIT-ACCUMALTORS.
+          05 W03-BENEFITS OCCURS 11 TIMES.
+             10 W03-BENEFIT-TWO OCCURS 5 TIMES.
+                15 W03-BENEFIT-TOTALS        PIC 9(5)V99 VALUE 0.
+             10 W03-BENEFIT-GRAND-TOTAL      PIC 9(6)V99 VALUE 0.
+      *****************************************
+      *BENEFIT TOTALS TABLE
+      *****************************************
+       01 W03-BENEFIT-TOTALS-TABLE.
+          05 W03-BEN-TOTAL OCCURS 5 TIMES
+             INDEXED BY W03-TOTAL-INDEX.
+             10 W03-BEN-TOTALS PIC 9(6)V99 VALUE 0.
+      *****************************************
+      *FIRST HEADER FOR REPORT WITH DATE OF REPORT
+      *****************************************
+       01 W04-TITLE-HEADER.
+          05             PIC X(3) VALUE SPACES.
+          05             PIC X(27) VALUE 'WORLD-TECH SOFTWARE COMPANY'.
+          05             PIC X(10) VALUE SPACES.
+          05 W04-YEAR    PIC X(4).
+          05             PIC X VALUE '/'.
+          05 W04-MONTH   PIC X(2).
+          05             PIC X VALUE '/'.
+          05 W04-DAY     PIC X(2).
+          05             PIC X(30) VALUE SPACES.
+      *****************************************
+      *SECOND HEADER FOR REPORT
+      *****************************************
+       01 W04-TITLE-HEADER-TWO.
+          05          PIC X(3) VALUE SPACES.
+          05          PIC X(27) VALUE 'BENEFIT COST SUMMARY REPORT'.
+          05          PIC X(50) VALUE SPACES.
+      *****************************************
+      *THIRD HEADER FOR REPORT
+      *****************************************
+       01 W05-TITLE-HEADER-THREE.
+          05          PIC X(24) VALUE SPACES.
+          05          PIC X(7) VALUE 'BENEFIT'.
+          05          PIC X(30) VALUE '------------------------------'.
+          05          PIC X(13) VALUE '-------------'.
+          05          PIC X(6) VALUE 'OFFICE'.
+          05          PIC X(3) VALUE SPACES.
+      *****************************************
+      *FOURTH HEADER FOR REPORT
+      *****************************************
+       01 W06-TITLE-HEADER-FOUR.
+          05          PIC X(11) VALUE 'OFFICE-NAME'.
+          05          PIC X(8) VALUE SPACES.
+          05          PIC X(4) VALUE 'LIFE'.
+          05          PIC X(6) VALUE SPACES.
+          05          PIC X(6) VALUE 'DENTAL'.
+          05          PIC X(6) VALUE SPACES.
+          05          PIC X(4) VALUE 'HOSP'.
+          05          PIC X(6) VALUE SPACES.
+          05          PIC X(4) VALUE 'RRSP'.
+          05          PIC X(6) VALUE SPACES.
+          05          PIC X(7) VALUE 'PENSION'.
+          05          PIC X(7) VALUE SPACES.
+          05          PIC X(5) VALUE 'TOTAL'.
+          05          PIC X(2) VALUE SPACES.
+      *****************************************
+      *FIFTH HEADER FOR REPORT
+      *****************************************
+       01 W07-TITLE-HEADER-FIVE.
+          05                        PIC X(13) VALUE 'BENEFIT TOTAL'.
+          05                        PIC X VALUE SPACES.
+          05 W07-LIFE-TOTAL         PIC ZZZ,ZZ9.99.
+          05                        PIC X VALUE SPACES.
+          05 W07-DENTAL-TOTAL       PIC ZZZ,ZZ9.99.
+          05                        PIC X VALUE SPACES.
+          05 W07-HOSP-TOTAL         PIC ZZZ,ZZ9.99.
+          05                        PIC X VALUE SPACES.
+          05 W07-RRSP-TOTAL         PIC ZZZ,ZZ9.99.
+          05                        PIC X VALUE SPACES.
+          05 W07-PENSION-TOTAL      PIC ZZZ,ZZ9.99.
+          05                        PIC X(17) VALUE SPACES.
+      *****************************************
+      *SIXTH HEADER FOR WHICH DISPLAYS COMPANY TOTAL EDITED
+      *****************************************
+       01 W08-TITLE-HEADER-SIX.
+          05                        PIC X(13) VALUE 'COMPANY TOTAL'.
+          05                        PIC X(55) VALUE SPACES.
+          05 W08-COMPANY-TOTAL      PIC Z,ZZZ,ZZ9.99.
+      *****************************************
+      *SEVENTH HEADER FOR WHICH DISPLAYS BENEFIT TOTALS EDITED
+      *****************************************
+       01 W08-TITLE-HEADER-SEVEN.
+          05 W08-OFFICE-NAME        PIC X(14).
+          05                        PIC X VALUE SPACES.
+          05 W08-LIFE-TOTAL         PIC ZZ,ZZ9.99.
+          05                        PIC X VALUE SPACES.
+          05 W08-DENTAL-TOTAL       PIC ZZ,ZZ9.99.
+          05                        PIC X(2) VALUE SPACES.
+          05 W08-HOSP-TOTAL         PIC ZZ,ZZ9.99.
+          05                        PIC X(2) VALUE SPACES.
+          05 W08-RRSP-TOTAL         PIC ZZ,ZZ9.99.
+          05                        PIC X(2) VALUE SPACES.
+          05 W08-PENSION-TOTAL      PIC ZZ,ZZ9.99.
+          05                        PIC X(3) VALUE SPACES.
+          05 W08-TOTAL              PIC ZZZ,ZZ9.99.
+      *****************************************
+      *PROCEDURE DIVION WHICH FUNCTIONS ARE CALLED
+      *****************************************
+       PROCEDURE DIVISION.
+           PERFORM 100-OPEN-FILES
+           PERFORM 600-READ-RECORDS-F01
+           PERFORM 500-SEARCH-OFFICE-CODE
+                UNTIL W01-END-OF-FILE = 'NO'
+           PERFORM 700-TOTALS
+           PERFORM 300-PRINT-HEADERS
+           PERFORM 800-WRITE-TABLE
+           PERFORM 900-ADD-BENEFIT-TOTALS
+           PERFORM 1000-ADD-COMPANY-TOTAL
+           PERFORM 200-CLOSE-FILES
+           STOP RUN
+           .
+      *************************************************
+      *OPENS FILES
+      *************************************************
+       100-OPEN-FILES.
+            OPEN INPUT F01-INPUT-FILE
+            OPEN OUTPUT F02-EMP-OUTPUT
+            .
+      *************************************************
+      *CLOSES FILES
+      *************************************************
+       200-CLOSE-FILES.
+            CLOSE F01-INPUT-FILE
+                  F02-EMP-OUTPUT
+            .
+      *************************************************
+      *DISPLAYS AND MOVES THE DATE AND WRTIES HEADERS
+      *************************************************
+       300-PRINT-HEADERS.
+            ACCEPT W01-DATE FROM DATE YYYYMMDD
+            MOVE W01-YEAR TO W04-YEAR
+            MOVE W01-MONTH TO W04-MONTH
+            MOVE W01-DAY TO W04-DAY
+
+            MOVE SPACES TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE W04-TITLE-HEADER TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE W04-TITLE-HEADER-TWO TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE SPACES TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE W05-TITLE-HEADER-THREE TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE W06-TITLE-HEADER-FOUR TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+            .
+      *************************************************
+      *WRITES FOOTERS
+      *************************************************
+       400-PRINT-FOOTERS.
+            MOVE SPACES TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE W07-TITLE-HEADER-FIVE TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+
+            MOVE W08-TITLE-HEADER-SIX TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+            .
+      *************************************************
+      *SEARCHES FOR OFFICE CODE AND ADDS BENEFIT COST TO CORRECT
+      *SUBBED VARIABLE
+      *************************************************
+       500-SEARCH-OFFICE-CODE.
+            SET W01-INDEX TO 1
+            MOVE 1 TO W01-SUB
+            SEARCH W02-OFFICE
+              AT END
+                 PERFORM VARYING W01-BENEFIT-SUB FROM 1 BY 1
+                  UNTIL F01-BENEFIT-CODE(W01-BENEFIT-SUB) = SPACES OR
+                  W01-BENEFIT-SUB = 6
+                  MOVE F01-BENEFIT-CODE(W01-BENEFIT-SUB) TO W01-SUB
+                  ADD F01-BENEFIT-COST(W01-BENEFIT-SUB) TO
+                  W03-BENEFIT-TOTALS(11, W01-SUB)
+                  ADD W03-BENEFIT-TOTALS(11, W01-SUB) TO
+                  W03-BENEFIT-GRAND-TOTAL(11)
+                 END-PERFORM
+              WHEN W02-OFFICE-CODE(W01-INDEX) = F01-EMP-OFFICE
+                 SET W01-OFFICE-SUB TO W01-INDEX
+                 PERFORM VARYING W01-BENEFIT-SUB FROM 1 BY 1
+                  UNTIL F01-BENEFIT-CODE(W01-BENEFIT-SUB) = SPACES OR
+                  W01-BENEFIT-SUB = 6
+                  MOVE F01-BENEFIT-CODE(W01-BENEFIT-SUB) TO W01-SUB
+                  ADD F01-BENEFIT-COST(W01-BENEFIT-SUB) TO
+                  W03-BENEFIT-TOTALS(W01-OFFICE-SUB, W01-SUB)
+                  ADD F01-BENEFIT-COST(W01-BENEFIT-SUB) TO
+                  W03-BENEFIT-GRAND-TOTAL(W01-OFFICE-SUB)
+                 END-PERFORM
+            END-SEARCH
+            PERFORM 600-READ-RECORDS-F01
+            .
+      *************************************************
+      *READS RECORDS FOR F01
+      *************************************************
+       600-READ-RECORDS-F01.
+            READ F01-INPUT-FILE
+               AT END MOVE 'NO' TO W01-END-OF-FILE
+            END-READ
+            .
+      *************************************************
+      *ACCUMULATES TOTALS AND ADDS THEM TO ACCUMATE TOTALS TABLE
+      *************************************************
+       700-TOTALS.
+            PERFORM VARYING W01-BENEFIT-SUB-TWO FROM 1 BY 1
+                 UNTIL W01-BENEFIT-SUB-TWO > 6
+               PERFORM VARYING W01-BENEFIT-SUB-THREE FROM 1 BY 1
+                    UNTIL W01-BENEFIT-SUB-THREE > 11
+                     ADD W03-BENEFIT-TOTALS(W01-BENEFIT-SUB-THREE,
+                                            W01-BENEFIT-SUB-TWO) TO
+                                    W03-BEN-TOTALS(W01-BENEFIT-SUB-TWO)
+               END-PERFORM
+            END-PERFORM
+            .
+      *************************************************
+      *WRTIES SPACES AND MOVES BENEFIT TOTALS TO TITLE-HEADER-SEVEN
+      *AND WRITES IT
+      *************************************************
+       800-WRITE-TABLE.
+            MOVE SPACES TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+            PERFORM VARYING W01-TABLE-SUB FROM 1 BY 1
+                 UNTIL W01-TABLE-SUB > 11
+             MOVE W02-CITY(W01-TABLE-SUB) TO W08-OFFICE-NAME
+
+             MOVE W03-BENEFIT-TOTALS(W01-TABLE-SUB, 1)
+             TO W08-LIFE-TOTAL
+
+             MOVE W03-BENEFIT-TOTALS(W01-TABLE-SUB, 2)
+             TO W08-DENTAL-TOTAL
+
+             MOVE W03-BENEFIT-TOTALS(W01-TABLE-SUB, 3)
+             TO W08-HOSP-TOTAL
+
+             MOVE W03-BENEFIT-TOTALS(W01-TABLE-SUB, 4)
+             TO W08-RRSP-TOTAL
+
+             MOVE W03-BENEFIT-TOTALS(W01-TABLE-SUB, 5)
+             TO W08-PENSION-TOTAL
+             MOVE W03-BENEFIT-GRAND-TOTAL(W01-TABLE-SUB)
+             TO W08-TOTAL
+
+             MOVE W08-TITLE-HEADER-SEVEN TO F02-EMP-OUT
+             WRITE F02-EMP-OUT
+
+            END-PERFORM
+            MOVE SPACES TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+            .
+      ************************************************
+      *MOVES BENEFIT TOTALS TO TITLE-HEADER-FIVE AND WRITES IT
+      ************************************************
+       900-ADD-BENEFIT-TOTALS.
+            MOVE W03-BEN-TOTALS(1) TO W07-LIFE-TOTAL
+            MOVE W03-BEN-TOTALS(2) TO W07-DENTAL-TOTAL
+            MOVE W03-BEN-TOTALS(3) TO W07-HOSP-TOTAL
+            MOVE W03-BEN-TOTALS(4) TO W07-RRSP-TOTAL
+            MOVE W03-BEN-TOTALS(5) TO W07-PENSION-TOTAL
+            MOVE W07-TITLE-HEADER-FIVE TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+            .
+      ************************************************
+      *ADDS COMPANY TOTAL AND MOVES IT TO TITLE-HEADER-SIX
+      *AND WRITES IT
+      ************************************************
+       1000-ADD-COMPANY-TOTAL.
+            PERFORM VARYING W01-COMPANY-COUNT FROM 1 BY 1
+                 UNTIL W01-COMPANY-COUNT > 11
+                   ADD W03-BENEFIT-GRAND-TOTAL(W01-COMPANY-COUNT) TO
+                   W01-TOTAL
+            END-PERFORM
+            MOVE W01-TOTAL TO W08-COMPANY-TOTAL
+            MOVE W08-TITLE-HEADER-SIX TO F02-EMP-OUT
+            WRITE F02-EMP-OUT
+            .
+

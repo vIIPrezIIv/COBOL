@@ -1,0 +1,483 @@
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ASSIGN3.
+       AUTHOR. 'REAL ORTELLI'.
+
+       ENVIRONMENT DIVISION.
+
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+
+           SELECT F02-MAST-FILE
+                 ASSIGN TO F02CUST
+                 ORGANIZATION IS INDEXED
+                 ACCESS IS DYNAMIC
+                 RECORD KEY IS F02-MAST-CUSTOMER-NUMB
+                 FILE STATUS IS W01-F02-STAT.
+
+           SELECT F01-TRANS-FILE
+                 ASSIGN TO F01TRAN.
+           SELECT F03-PRINT-FILE
+                 ASSIGN TO F03REPT.
+
+       DATA DIVISION.
+       FILE SECTION.
+
+       FD  F02-MAST-FILE.
+       01  F02-MAST-RECORD.
+           05  F02-MAST-CUSTOMER-NUMB PIC X(8).
+           05  F02-MAST-ACCOUNT-TYPE  PIC X.
+           05  F02-MAST-CREDIT-RATING PIC X(3).
+           05  F02-MAST-BILLING-CYC   PIC 9(2).
+           05  F02-MAST-CREDIT-LIMIT  PIC S9(5)V99 COMP-3.
+           05  F02-MAST-DATE.
+               10  F02-MAST-DAY       PIC X(2).
+               10  F02-MAST-MONTH     PIC X(2).
+               10  F02-MAST-YEAR      PIC X(2).
+           05  F02-MAST-CREDIT-FLAG   PIC X.
+           05  F02-MAST-CUSTOMER-NAME PIC X(15).
+           05  F02-MAST-CUSTOMER-ADD  PIC X(20).
+           05  F02-MAST-CHARGES       PIC S9(5)V99 COMP-3.
+           05  F02-MAST-CREDITS-PAY   PIC S9(5)V99 COMP-3.
+           05  F02-MAST-PAYMENTS      PIC S9(5)V99 COMP-3.
+           05  F02-MAST-PREV-BALANCE  PIC S9(5)V99 COMP-3.
+           05  F02-MAST-RUNN-BALANCE  PIC S9(5)V99 COMP-3.
+
+       FD  F01-TRANS-FILE
+           RECORDING MODE F
+           RECORD CONTAINS 60 CHARACTERS
+           DATA RECORD IS F01-TRANS-RECORD.
+       01  F01-TRANS-RECORD.
+           05 F01-CUSTOMER-NUMB    PIC 9(8).
+           05 F01-TRANS-TYPE       PIC 9(2).
+              88 F01-UPDATE        VALUE 10.
+              88 F01-BILL          VALUE 20.
+           05 F01-UPDATE-TRANS.
+              10 F01-ACCOUNT-TYPE  PIC X.
+              10 F01-BILLING-CYC   PIC 99.
+              10 F01-CREDIT-RATING PIC X(3).
+              10 F01-CREDIT-LIMIT  PIC 9(4).
+              10 F01-CUSTOMER-NAME PIC X(15).
+              10                   PIC X(5).
+              10 F01-CUSTOMER-ADD  PIC X(20).
+           05 F01-BILL-TRANS REDEFINES F01-UPDATE-TRANS.
+              10 F01-TRANS-DATE    PIC X(6).
+              10 F01-CHARGE-AMOUNT PIC S9(4)V99.
+              10 F01-CREDIT-AMOUNT PIC S9(4)V99.
+              10 F01-PAYMENT-AMNT  PIC S9(4)V99.
+              10                   PIC X(26).
+
+       FD  F03-PRINT-FILE
+           RECORDING MODE F
+           RECORD CONTAINS 80 CHARACTERS
+           DATA RECORD IS F03-PRINT-RECORD.
+       01  F03-PRINT-RECORD           PIC X(80).
+
+       WORKING-STORAGE SECTION.
+       01 W01-REPORT-DATE                   PIC 99/99/99.
+       01 W01-DATA-REMAINS                  PIC X VALUE SPACES.
+          88 W01-DATA-EOF                   VALUE 'N'.
+       01 W01-EOF                           PIC X VALUE 'Y'.
+          88 W01-MASTER-FILE-END            VALUE 'N'.
+       01 W01-F02-STAT                      PIC X(2).
+       01 W01-STATUS                        PIC X.
+          88 W01-UPDATE-STATUS              VALUE 'N'.
+       01 W01-LINE-COUNT                    PIC 9(3) VALUE 000.
+       01 W01-DECIMAL                       PIC S9(5)V99.
+       01 W01-NUMBER                        PIC ZZZZ9.99.
+       01 W01-NUMBER-X REDEFINES W01-NUMBER PIC X(8).
+       01 W01-FORMAT-DATE.
+          05 W01-YEAR                          PIC X(4).
+          05 W01-MONTH                         PIC X(2).
+          05 W01-DAY                           PIC X(2).
+
+       01 MASTER-FILE-HEADER.
+          05  W05-MAST-CUSTOMER-NUMB PIC X(8).
+          05  W05-MAST-ACCOUNT-TYPE  PIC X.
+          05  W05-MAST-CREDIT-RATING PIC X(3).
+          05  W05-MAST-BILLING-CYC   PIC 9(2).
+          05  W05-MAST-CREDIT-LIMIT  PIC S9(5)V99 COMP-3.
+          05  W05-MAST-DATE.
+              10  W05-MAST-DAY       PIC X(2).
+              10  W05-MAST-MONTH     PIC X(2).
+              10  W05-MAST-YEAR      PIC X(2).
+          05  W05-MAST-CREDIT-FLAG   PIC X.
+          05  W05-MAST-CUSTOMER-NAME PIC X(15).
+          05  W05-MAST-CUSTOMER-ADD  PIC X(20).
+          05  W05-MAST-CHARGES       PIC S9(5)V99 COMP-3.
+          05  W05-MAST-CREDITS-PAY   PIC S9(5)V99 COMP-3.
+          05  W05-MAST-PAYMENTS      PIC S9(5)V99 COMP-3.
+          05  W05-MAST-PREV-BALANCE  PIC S9(5)V99 COMP-3.
+          05  W05-MAST-RUNN-BALANCE  PIC S9(5)V99 COMP-3.
+
+       01 W03-TRANS-BILL-DETAIL.
+          05 W03-CUSTOMER-KEY        PIC X(8).
+          05 W03-TRANS-BILL-LINE.
+             10 W03-TRANS.
+                15                   PIC X(2) VALUE SPACES.
+                15 W03-TRANS-TYPE    PIC X(2).
+                15                   PIC X(2) VALUE SPACES.
+                15 W03-ACCOUNT-FIELD PIC X(15).
+                15                   PIC X(2) VALUE SPACES.
+                15 W03-ACCOUNT-OLD   PIC X(20).
+                15                   PIC X(2) VALUE SPACES.
+                15 W03-NEW-AMOUNT    PIC X(20).
+                15                   PIC X(47) VALUE SPACES.
+             10 W03-BILL REDEFINES W03-TRANS.
+                15                   PIC X(2).
+                15 W03-CUSTOMER-NAME PIC X(15).
+                15                   PIC X(2).
+                15 W03-CUSTOMER-ADD  PIC X(20).
+                15                   PIC X(2).
+                15 W03-CREDIT-LIMIT  PIC ZZ,ZZ9.99.
+                15                   PIC X(2).
+                15 W03-BALANCE       PIC ZZ,ZZ9.99.
+                15                   PIC X(51).
+
+       01 W04-PAGE-HEADER.
+          05             PIC X(8) VALUE 'PAGE:'.
+          05 W04-PAGE    PIC 9(2).
+          05             PIC X(110) VALUE SPACES.
+
+       01 W05-PRINT-HEADER.
+          05             PIC X(8) VALUE 'CUST KEY'.
+          05             PIC X(2) VALUE SPACES.
+          05             PIC X(2) VALUE 'TT'.
+          05             PIC X(2) VALUE SPACES.
+          05             PIC X(10) VALUE 'FIELD NAME'.
+          05             PIC X(7) VALUE SPACES.
+          05             PIC X(14) VALUE 'OLD VALUE/DATE'.
+          05             PIC X(8) VALUE SPACES.
+          05             PIC X(16) VALUE 'NEW VALUE/AMOUNT'.
+          05             PIC X(52) VALUE SPACES.
+
+       01 W06-PRINT-HEADER-TWO.
+          05             PIC X(8) VALUE 'CUST KEY'.
+          05             PIC X(2) VALUE SPACES.
+          05             PIC X(9) VALUE 'CUST NAME'.
+          05             PIC X(8) VALUE SPACES.
+          05             PIC X(7) VALUE 'ADDRESS'.
+          05             PIC X(14) VALUE SPACES.
+          05             PIC X(12) VALUE 'CREDIT LIMIT'.
+          05             PIC X(3) VALUE SPACES.
+          05             PIC X(7) VALUE 'BALANCE'.
+          05             PIC X(52) VALUE SPACES.
+
+       01 W07-PRINT-HEADER-THREE.
+          05             PIC X(45) VALUE
+                  'HYDRO TWO CUSTOMER MASTER UPDATE AUDIT REPORT'.
+          05             PIC X(12) VALUE SPACES.
+          05             PIC X(6) VALUE 'DATE:'.
+          05 W07-YEAR    PIC X(4).
+          05             PIC X VALUE '/'.
+          05 W07-MONTH   PIC X(2).
+          05             PIC X VALUE '/'.
+          05 W07-DAY     PIC X(2).
+          05             PIC X(38) VALUE SPACES.
+
+       01 W08-PRINT-HEADER-FOUR.
+          05             PIC X(44) VALUE
+                  'HYDRO TWO CUSTOMER MASTER CREDIT FLAG REPORT'.
+          05             PIC X(13) VALUE SPACES.
+          05             PIC X(6) VALUE 'DATE:'.
+          05 W08-YEAR    PIC X(4).
+          05             PIC X VALUE '/'.
+          05 W08-MONTH   PIC X(2).
+          05             PIC X VALUE '/'.
+          05 W08-DAY     PIC X(2).
+          05             PIC X(38) VALUE SPACES.
+
+
+       PROCEDURE DIVISION.
+           PERFORM 1400-DATE
+           PERFORM 1000-INIT
+           PERFORM 300-READ
+                   UNTIL W01-DATA-REMAINS = 'N'
+           PERFORM 1200-REPORT-BILL
+           PERFORM 200-CLOSE-FILES
+           STOP RUN
+           .
+      ************************************************
+      *THIS FUNCTION OPEN THE FILES                  *
+      ************************************************
+       100-OPEN-FILES.
+           OPEN INPUT F01-TRANS-FILE
+           OPEN I-O F02-MAST-FILE
+           OPEN OUTPUT F03-PRINT-FILE
+           .
+      ************************************************
+      *THIS FUNCTION CLOSES THE FILES                *
+      ************************************************
+       200-CLOSE-FILES.
+           CLOSE F01-TRANS-FILE
+           CLOSE F02-MAST-FILE
+           CLOSE F03-PRINT-FILE
+           .
+      ************************************************
+      *THIS FUNCTION IS THE READ FOR TRANS/MASTER    *
+      ************************************************
+       300-READ.
+           MOVE F01-CUSTOMER-NUMB TO F02-MAST-CUSTOMER-NUMB
+           READ F02-MAST-FILE INTO MASTER-FILE-HEADER
+             KEY IS F02-MAST-CUSTOMER-NUMB
+               INVALID KEY
+                 PERFORM 900-ERRORS
+               NOT INVALID KEY
+                 MOVE 'Y' TO W01-STATUS
+                 MOVE F01-CUSTOMER-NUMB TO W03-CUSTOMER-KEY
+                 MOVE F01-TRANS-TYPE TO W03-TRANS-TYPE
+                 EVALUATE TRUE
+                    WHEN F01-UPDATE PERFORM 400-UPDATE
+                    WHEN F01-BILL PERFORM 800-BILL
+                 END-EVALUATE
+           END-READ
+           PERFORM 500-MASTER-WRITE
+           .
+      ************************************************
+      *THIS FUNCTION HANDLES THE TRANSACTION UPDATES *
+      ************************************************
+       400-UPDATE.
+           IF F01-ACCOUNT-TYPE NOT EQUAL SPACES
+              MOVE 'ACCOUNT TYPE' TO W03-ACCOUNT-FIELD
+              MOVE W05-MAST-ACCOUNT-TYPE TO W03-ACCOUNT-OLD
+              MOVE F01-ACCOUNT-TYPE TO W05-MAST-ACCOUNT-TYPE
+              MOVE F01-ACCOUNT-TYPE TO W03-NEW-AMOUNT
+              IF W01-UPDATE-STATUS
+                 MOVE SPACES TO W03-CUSTOMER-KEY
+                 MOVE SPACES TO W03-TRANS-TYPE
+              END-IF
+              PERFORM 700-DETAIL-LINE
+              MOVE 'N' TO W01-STATUS
+           END-IF
+           IF F01-CREDIT-RATING NOT EQUAL SPACES
+              MOVE 'CREDIT RATING' TO W03-ACCOUNT-FIELD
+              MOVE W05-MAST-CREDIT-RATING TO W03-ACCOUNT-OLD
+              MOVE F01-CREDIT-RATING TO W05-MAST-CREDIT-RATING
+              MOVE F01-CREDIT-RATING TO W03-NEW-AMOUNT
+              IF W01-UPDATE-STATUS
+                 MOVE SPACES TO W03-CUSTOMER-KEY
+                 MOVE SPACES TO W03-TRANS-TYPE
+              END-IF
+              PERFORM 700-DETAIL-LINE
+              MOVE 'N' TO W01-STATUS
+           END-IF
+           IF F01-BILLING-CYC NOT EQUAL SPACES
+              MOVE 'BILL CYCLE' TO W03-ACCOUNT-FIELD
+              MOVE W05-MAST-BILLING-CYC TO W03-ACCOUNT-OLD
+              MOVE F01-BILLING-CYC TO W05-MAST-BILLING-CYC
+              MOVE F01-BILLING-CYC TO W03-NEW-AMOUNT
+              IF W01-UPDATE-STATUS
+                 MOVE SPACES TO W03-CUSTOMER-KEY
+                 MOVE SPACES TO W03-TRANS-TYPE
+              END-IF
+              PERFORM 700-DETAIL-LINE
+              MOVE 'N' TO W01-STATUS
+           END-IF
+           IF F01-CREDIT-LIMIT NOT EQUAL SPACES
+              MOVE 'CREDIT LIMIT' TO W03-ACCOUNT-FIELD
+              MOVE W05-MAST-CREDIT-LIMIT TO W01-DECIMAL
+              MOVE W01-DECIMAL TO W01-NUMBER
+              MOVE W01-NUMBER-X TO W03-ACCOUNT-OLD
+              MOVE F01-CREDIT-LIMIT TO W05-MAST-CREDIT-LIMIT
+              MOVE F01-CREDIT-LIMIT TO W01-DECIMAL
+              MOVE W01-DECIMAL TO W01-NUMBER
+              MOVE W01-NUMBER-X TO W03-NEW-AMOUNT
+              IF W01-UPDATE-STATUS
+                 MOVE SPACES TO W03-CUSTOMER-KEY
+                 MOVE SPACES TO W03-TRANS-TYPE
+              END-IF
+              PERFORM 700-DETAIL-LINE
+              MOVE 'N' TO W01-STATUS
+           END-IF
+           IF F01-CUSTOMER-NAME NOT EQUAL SPACES
+              MOVE 'CUST NAME' TO W03-ACCOUNT-FIELD
+              MOVE W05-MAST-CUSTOMER-NAME TO W03-ACCOUNT-OLD
+              MOVE F01-CUSTOMER-NAME TO W05-MAST-CUSTOMER-NAME
+              MOVE F01-CUSTOMER-NAME TO W03-NEW-AMOUNT
+              IF W01-UPDATE-STATUS
+                 MOVE SPACES TO W03-CUSTOMER-KEY
+                 MOVE SPACES TO W03-TRANS-TYPE
+              END-IF
+              PERFORM 700-DETAIL-LINE
+              MOVE 'N' TO W01-STATUS
+           END-IF
+           IF F01-CUSTOMER-ADD NOT EQUAL SPACES
+              MOVE 'ADDRESS' TO W03-ACCOUNT-FIELD
+              MOVE W05-MAST-CUSTOMER-ADD TO W03-ACCOUNT-OLD
+              MOVE F01-CUSTOMER-ADD TO W05-MAST-CUSTOMER-ADD
+              MOVE F01-CUSTOMER-ADD TO W03-NEW-AMOUNT
+              IF W01-UPDATE-STATUS
+                 MOVE SPACES TO W03-CUSTOMER-KEY
+                 MOVE SPACES TO W03-TRANS-TYPE
+              END-IF
+              PERFORM 700-DETAIL-LINE
+              MOVE 'N' TO W01-STATUS
+           END-IF
+           .
+      ************************************************
+      *THIS FUNCTION WRITES THE MASTER FILE          *
+      ************************************************
+       500-MASTER-WRITE.
+           REWRITE F02-MAST-RECORD FROM MASTER-FILE-HEADER
+           READ F01-TRANS-FILE
+               AT END MOVE 'N' TO W01-DATA-REMAINS
+           END-READ
+           .
+      ************************************************
+      *THIS FUNCTION IS THE DETAIL LINE, WRITES AND  *
+      *ADDS TO THE LINE COUNT                        *
+      ************************************************
+       700-DETAIL-LINE.
+           IF W01-LINE-COUNT > 40
+              MOVE SPACES TO F03-PRINT-RECORD
+              WRITE F03-PRINT-RECORD
+              MOVE 000 TO W01-LINE-COUNT
+              ADD 1 TO W04-PAGE
+              WRITE F03-PRINT-RECORD FROM W07-PRINT-HEADER-THREE
+              WRITE F03-PRINT-RECORD FROM W04-PAGE-HEADER
+              WRITE F03-PRINT-RECORD FROM W05-PRINT-HEADER
+           END-IF
+           ADD 1 TO W01-LINE-COUNT
+           WRITE F03-PRINT-RECORD FROM W03-TRANS-BILL-DETAIL
+           .
+      ************************************************
+      *THIS FUNCTION HANDLES THE BILL UPDATES AND    *
+      *MANAGES THE CREDIT FLAG                       *
+      ************************************************
+       800-BILL.
+           EVALUATE TRUE
+              WHEN F01-CHARGE-AMOUNT IS NUMERIC
+                   MOVE 'CHARGE' TO W03-ACCOUNT-FIELD
+                   MOVE F01-TRANS-DATE TO W01-REPORT-DATE
+                   MOVE W01-REPORT-DATE TO W03-ACCOUNT-OLD
+                   MOVE F01-CHARGE-AMOUNT TO W01-NUMBER
+                   MOVE W01-NUMBER-X TO W03-NEW-AMOUNT
+                   ADD F01-CHARGE-AMOUNT TO W05-MAST-CHARGES
+                   ADD F01-CHARGE-AMOUNT TO W05-MAST-RUNN-BALANCE
+                   IF F01-TRANS-DATE > W05-MAST-DATE
+                      MOVE F01-TRANS-DATE TO W05-MAST-DATE
+                   END-IF
+                   PERFORM 700-DETAIL-LINE
+              WHEN F01-CREDIT-AMOUNT IS NUMERIC
+                   MOVE 'CREDIT' TO W03-ACCOUNT-FIELD
+                   MOVE F01-TRANS-DATE TO W01-REPORT-DATE
+                   MOVE W01-REPORT-DATE TO W03-ACCOUNT-OLD
+                   MOVE F01-CREDIT-AMOUNT TO W01-NUMBER
+                   MOVE W01-NUMBER-X TO W03-NEW-AMOUNT
+                   ADD F01-CREDIT-AMOUNT TO W05-MAST-CREDITS-PAY
+                   SUBTRACT F01-CREDIT-AMOUNT FROM W05-MAST-RUNN-BALANCE
+                   IF F01-TRANS-DATE > W05-MAST-DATE
+                      MOVE F01-TRANS-DATE TO W05-MAST-DATE
+                   END-IF
+                   PERFORM 700-DETAIL-LINE
+              WHEN F01-PAYMENT-AMNT IS NUMERIC
+                   MOVE 'PAYMENT' TO W03-ACCOUNT-FIELD
+                   MOVE F01-TRANS-DATE TO W01-REPORT-DATE
+                   MOVE W01-REPORT-DATE TO W03-ACCOUNT-OLD
+                   MOVE F01-PAYMENT-AMNT TO W01-NUMBER
+                   MOVE W01-NUMBER-X TO W03-NEW-AMOUNT
+                   ADD F01-PAYMENT-AMNT TO W05-MAST-PAYMENTS
+                   SUBTRACT F01-PAYMENT-AMNT FROM W05-MAST-RUNN-BALANCE
+                   IF F01-TRANS-DATE > W05-MAST-DATE
+                      MOVE F01-TRANS-DATE TO W05-MAST-DATE
+                   END-IF
+                   PERFORM 700-DETAIL-LINE
+           END-EVALUATE
+           IF W05-MAST-RUNN-BALANCE > W05-MAST-CREDIT-LIMIT
+              MOVE '*' TO W05-MAST-CREDIT-FLAG
+           ELSE
+              MOVE SPACES TO W05-MAST-CREDIT-FLAG
+           .
+      ************************************************
+      *THIS FUNCTION MOVES THE DATA FOR THE ERRORS   *
+      *AND WRITES THEM                               *
+      ************************************************
+       900-ERRORS.
+           MOVE F01-CUSTOMER-NUMB TO W03-CUSTOMER-KEY
+           MOVE F01-TRANS-TYPE TO W03-TRANS-TYPE
+           MOVE 'INVALID' TO W03-ACCOUNT-FIELD
+           MOVE 'MASTER DOESNT MATCH' TO W03-ACCOUNT-OLD
+           MOVE '********************' TO W03-NEW-AMOUNT
+           PERFORM 700-DETAIL-LINE
+           .
+      ************************************************
+      *THIS FUNCTION INITIALIZES THE PROGRAM         *
+      ************************************************
+       1000-INIT.
+           PERFORM 100-OPEN-FILES
+           MOVE 'Y' TO W01-DATA-REMAINS
+           IF W01-F02-STAT NOT EQUAL '00'
+              DISPLAY 'ERROR: FAILED TO OPEN'
+              MOVE 69 TO RETURN-CODE
+              STOP RUN
+           END-IF
+           READ F01-TRANS-FILE
+                AT END MOVE 'N' TO W01-DATA-REMAINS
+           END-READ
+           PERFORM 1100-REPORT
+           .
+      ************************************************
+      *THIS FUNCTION WRITES THE REPORT HEADERS       *
+      ************************************************
+       1100-REPORT.
+           WRITE F03-PRINT-RECORD FROM W07-PRINT-HEADER-THREE
+           MOVE 01 TO W04-PAGE
+           WRITE F03-PRINT-RECORD FROM W04-PAGE-HEADER
+           WRITE F03-PRINT-RECORD FROM W05-PRINT-HEADER
+           .
+      ************************************************
+      *THIS FUNCTION MANAGES THE LINE COUNT/PAGE     *
+      *AND STARTS BACK AT THE BEGINNING OF THE FILE  *
+      *WRITES THE HEADERS AND READS THE FILE         *
+      ************************************************
+       1200-REPORT-BILL.
+           MOVE 00 TO W01-LINE-COUNT
+           MOVE 01 TO W04-PAGE
+           MOVE SPACES TO W03-TRANS-BILL-DETAIL
+           MOVE SPACES TO F03-PRINT-RECORD
+           WRITE F03-PRINT-RECORD
+           WRITE F03-PRINT-RECORD FROM W08-PRINT-HEADER-FOUR
+           WRITE F03-PRINT-RECORD FROM W04-PAGE-HEADER
+           WRITE F03-PRINT-RECORD FROM W06-PRINT-HEADER-TWO
+           MOVE LOW-VALUES TO F02-MAST-CUSTOMER-NUMB
+           START F02-MAST-FILE KEY IS >= F02-MAST-CUSTOMER-NUMB
+                 INVALID KEY DISPLAY 'KEY IS INVALID'
+           END-START
+           PERFORM UNTIL W01-MASTER-FILE-END
+              READ F02-MAST-FILE NEXT RECORD INTO MASTER-FILE-HEADER
+                   AT END MOVE 'N' TO W01-EOF
+                   NOT AT END
+                       PERFORM 1300-REPORT-BILL-INFO
+              END-READ
+           END-PERFORM
+           .
+      ************************************************
+      *THIS FUNCTION MOVES AND PRINTS THE BILL INFO  *
+      ************************************************
+       1300-REPORT-BILL-INFO.
+           IF W05-MAST-CREDIT-FLAG NOT EQUAL SPACES
+              MOVE W05-MAST-CUSTOMER-NUMB TO W03-CUSTOMER-KEY
+              MOVE W05-MAST-CUSTOMER-NAME TO W03-CUSTOMER-NAME
+              MOVE W05-MAST-CUSTOMER-ADD TO W03-CUSTOMER-ADD
+              MOVE W05-MAST-CREDIT-LIMIT TO W01-DECIMAL
+              MOVE W01-DECIMAL TO W03-CREDIT-LIMIT
+              MOVE W05-MAST-RUNN-BALANCE TO W01-DECIMAL
+              MOVE W01-DECIMAL TO W03-BALANCE
+              PERFORM 700-DETAIL-LINE
+           END-IF
+           .
+      ************************************************
+      *THIS FUNCTION GRABS THE DATE AND FORMATS IT   *
+      ************************************************
+       1400-DATE.
+           ACCEPT W01-FORMAT-DATE FROM DATE YYYYMMDD
+           MOVE W01-YEAR TO W07-YEAR
+           MOVE W01-YEAR TO W08-YEAR
+           MOVE W01-MONTH TO W07-MONTH
+           MOVE W01-MONTH TO W08-MONTH
+           MOVE W01-DAY TO W07-DAY
+           MOVE W01-DAY TO W08-DAY
+           .
+      ************************************************
+
